@@ -25,137 +25,171 @@ function __awaiter(thisArg, _arguments, P, generator) {
     });
 }
 
-figma.showUI(__html__, { width: 232, height: 208 });
+figma.showUI(__html__, { width: 288, height: 220 });
+const nodes = [];
+let frameContainerNodeId;
+let frameContainerNode;
+const gap = 10;
+const columns = 10;
+const componentWidth = 65;
+const componentHeight = 65;
+const margin = 50;
+let x = 0 + margin;
+let y = 0 + margin;
+// let iconNames:[] = [];
+let duplicateIcons = 0;
+let completedIcons = 0;
+let documentNodeList = [];
+let workingState = false;
 figma.ui.onmessage = (msg) => __awaiter(void 0, void 0, void 0, function* () {
-    if (msg.type === 'prepare-icons') {
-        const allPromise = Promise.all([
-            yield figma.loadFontAsync({ family: msg.icons.metadata.name, style: "Regular" }),
-            yield figma.loadFontAsync({ family: "Open Sans", style: "Regular" })
-        ]);
-        allPromise.then(values => {
-            console.log(values);
-            buildIcons(msg.icons);
-        }).catch(error => {
-        });
+    if (msg.type === 'init') {
+        try {
+            yield figma.loadFontAsync({ family: "Open Sans", style: "Regular" });
+        }
+        catch (e) {
+            figma.notify(e);
+        }
     }
-    if (msg.type === 'test') {
-        const node = figma.createVector();
-        // This creates a triangle
-        node.vectorPaths = [{
-                windingRule: 'EVENODD',
-                // data: 'M 0 100 L 100 100 L 50 0 Z',
-                data: "M 512 32l-512 512 96 96 96-96v416h256v-192h128v192h256v-416l96 96 96-96-512-512zM512 448c-35.346 0-64-28.654-64-64s28.654-64 64-64c35.346 0 64 28.654 64 64s-28.654 64-64 64z",
-            }];
-        // Put the node in the center of the viewport so we can see it
-        node.x = figma.viewport.center.x - node.width / 2;
-        node.y = figma.viewport.center.y - node.height / 2;
-        figma.closePlugin();
+    if (msg.type === 'load-fonts') {
+        try {
+            yield figma.loadFontAsync({ family: msg.font, style: "Regular" });
+            figma.notify(`${msg.font} is installed`);
+            figma.ui.postMessage({
+                type: 'analyze-selection',
+                fontInstalled: true
+            });
+        }
+        catch (e) {
+            figma.ui.postMessage({
+                type: 'analyze-selection',
+                fontInstalled: false
+            });
+            figma.notify(e);
+        }
+        // iconNames = msg.names;
     }
-});
-function buildIcons(icons) {
-    // console.log(msg.icons.icons)
-    const prefix = icons.preferences.fontPref.prefix;
-    // nodes
-    const nodes = [];
-    let gap = 10;
-    let columns = 10;
-    let componentWidth = 65;
-    let componentHeight = 65;
-    let margin = 50;
-    let x = 0 + margin;
-    let y = 0 + margin;
-    // | margin
-    // | margin | componentWidth | gap | componentWidth | margin
-    let container;
-    let selection = figma.currentPage.selection;
-    let duplicateIcons = 0;
-    if (selection.length === 1 && selection[0].type === "FRAME") {
-        container = selection[0];
-    }
-    else {
-        figma.notify('Must select a frame to insert icon components.');
-        return;
-    }
-    tellUI({ icon: '', text: "building" });
-    // build all the components
-    for (let i = 0; i < icons.icons.length; i++) {
-        const icon = icons.icons[i];
-        const iconName = prefix + icon.properties.name;
-        const iconAlreadyExists = figma.root.findAll(n => n.name === iconName);
-        if (!(iconAlreadyExists.length > 0)) {
-            const frame = figma.createFrame();
-            const iconComponent = figma.createComponent();
-            const glyph = figma.createText();
-            const label = figma.createText();
-            const background = figma.createRectangle();
-            frame.resize(componentWidth, componentHeight);
-            background.resize(componentWidth, componentHeight);
-            background.opacity = 0;
-            background.locked = true;
-            iconComponent.name = iconName;
-            iconComponent.resize(20, 20);
-            iconComponent.appendChild(glyph);
-            iconComponent.description = `(Master Component):\nCSS Class: ${iconName}\nCSS Content: TODO}`;
-            frame.appendChild(label);
-            frame.appendChild(iconComponent);
-            frame.insertChild(0, background);
-            glyph.fontName = { family: icons.metadata.name, style: "Regular" };
-            glyph.characters = String.fromCharCode(icon.properties.code);
-            glyph.textAlignHorizontal = "CENTER";
-            glyph.name = "Icon";
-            glyph.fontSize = 20;
-            glyph.resize(20, 20);
-            glyph.x = 0;
-            glyph.y = 0;
-            frame.name = iconName;
-            frame.x = x;
-            frame.y = y;
-            label.name = "CSS Class";
-            label.fontName = { family: "Open Sans", style: "Regular" };
-            label.characters = iconName;
-            label.textAlignHorizontal = "CENTER";
-            label.fontSize = 6;
-            iconComponent.x = (frame.width / 2) - (iconComponent.width / 2);
-            iconComponent.y = 10;
-            label.x = (frame.width / 2) - (label.width / 2);
-            label.y = 35;
-            const group = figma.group([label, iconComponent, background], figma.currentPage);
-            group.name = iconName;
-            frame.remove();
-            container.appendChild(group);
-            nodes.push(group);
-            // position
-            x = x + componentWidth + gap;
-            if (x > ((componentWidth + gap) * columns) + margin - gap) {
-                y = y + componentHeight + gap;
-                x = 0 + margin;
-            }
+    if (msg.type === 'create-icon') {
+        let count = msg.count === 0 ? 0 : msg.count - 1;
+        if (count === 0) {
+            figma.ui.postMessage({ workingState: workingState, count: count, completed: completedIcons, skipped: duplicateIcons, type: 'loop-end' });
+            postResults();
+            reset();
         }
         else {
-            duplicateIcons = duplicateIcons + 1;
+            buildIcon(msg.icon, msg.font, msg.prefix);
+            figma.ui.postMessage({ workingState: workingState, count: count, completed: completedIcons, skipped: duplicateIcons, type: 'create-end' });
         }
     }
+});
+function postResults() {
+    let message = "";
     if (duplicateIcons === 0 && nodes.length === 0) {
-        figma.notify(`No icons found.`);
+        message = `No icons found.`;
     }
     else if (duplicateIcons > 0 && nodes.length === 0) {
-        figma.notify(`${duplicateIcons} icons alredy exist. No new icons found to add.`);
+        message = `No new icons found. ${duplicateIcons} icons already exist.`;
     }
     else if (duplicateIcons > 0 && nodes.length === 1) {
-        figma.notify(`${duplicateIcons} icons alredy exist. Added ${nodes.length} new icon!`);
+        message = `Added ${nodes.length} new icon! ${duplicateIcons} icons already exist.`;
     }
     else if (duplicateIcons > 0 && nodes.length > 1) {
-        figma.notify(`${duplicateIcons} icons alredy exist. Added ${nodes.length} new icons!`);
+        message = `Added ${nodes.length} new icons! ${duplicateIcons} icons already exist.`;
     }
     else {
-        figma.notify(`Added ${nodes.length} new icons!`);
+        message = (`Added ${nodes.length} new icons!`);
     }
-    figma.viewport.scrollAndZoomIntoView(nodes);
-    tellUI({ icon: '', text: 'done' });
-    // figma.showUI(__html__, { width: 232, height: 400 });
-}
-function tellUI(message) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield figma.ui.postMessage(message);
+    figma.notify(message);
+    figma.ui.postMessage({
+        type: 'results',
+        message: message
     });
+}
+function reset() {
+    x = 0 + margin;
+    y = 0 + margin;
+    duplicateIcons = 0;
+    documentNodeList = [];
+}
+function buildIcon(icon, font, prefix) {
+    const uniqueIconName = (icon.properties.name).split(', ')[0];
+    const iconName = prefix + uniqueIconName;
+    // used to set a state in the plugin ui
+    workingState = true;
+    // create a frame to insert new components.
+    // should run only the first time
+    if (figma.getNodeById(frameContainerNodeId) == null) {
+        const frameContainerNodeNode = figma.createFrame();
+        frameContainerNodeId = frameContainerNodeNode.id;
+        figma.currentPage.appendChild(frameContainerNodeNode);
+        frameContainerNodeNode.x = figma.viewport.center.x - 420;
+        frameContainerNodeNode.y = figma.viewport.center.y;
+        frameContainerNode = figma.getNodeById(frameContainerNodeId);
+    }
+    else {
+        frameContainerNode = figma.getNodeById(frameContainerNodeId);
+    }
+    // get a documentNodeList of all component nodes
+    // to compare with selection for duplicates.
+    // should run only the first time.
+    if (documentNodeList.length === 0) {
+        let components = figma.root.findAll(n => n.type === "COMPONENT");
+        components.forEach(c => {
+            documentNodeList.push(c.name);
+        });
+    }
+    // 
+    if (!documentNodeList.includes(iconName)) {
+        const frame = figma.createFrame();
+        const iconComponent = figma.createComponent();
+        const glyph = figma.createText();
+        const label = figma.createText();
+        const background = figma.createRectangle();
+        frame.resize(componentWidth, componentHeight);
+        background.resize(componentWidth, componentHeight);
+        background.opacity = 0;
+        background.locked = true;
+        iconComponent.name = iconName;
+        iconComponent.resize(20, 20);
+        iconComponent.appendChild(glyph);
+        iconComponent.description = `(Master Component):\nCSS Class: ${iconName}\nCSS Content: TODO}`;
+        frame.appendChild(label);
+        frame.appendChild(iconComponent);
+        frame.insertChild(0, background);
+        glyph.fontName = { family: font, style: "Regular" };
+        glyph.characters = String.fromCharCode(icon.properties.code);
+        glyph.textAlignHorizontal = "CENTER";
+        glyph.name = "Icon";
+        glyph.fontSize = 20;
+        glyph.resize(20, 20);
+        glyph.x = 0;
+        glyph.y = 0;
+        frame.name = iconName;
+        frame.x = x;
+        frame.y = y;
+        label.name = "CSS Class";
+        label.fontName = { family: "Open Sans", style: "Regular" };
+        label.characters = iconName;
+        label.textAlignHorizontal = "CENTER";
+        label.fontSize = 6;
+        iconComponent.x = (frame.width / 2) - (iconComponent.width / 2);
+        iconComponent.y = 10;
+        label.x = (frame.width / 2) - (label.width / 2);
+        label.y = 35;
+        const group = figma.group([label, iconComponent, background], figma.currentPage);
+        group.name = iconName;
+        frame.remove();
+        frameContainerNode.appendChild(group);
+        nodes.push(group);
+        // position
+        x = x + componentWidth + gap;
+        if (x > ((componentWidth + gap) * columns) + margin - gap) {
+            y = y + componentHeight + gap;
+            x = 0 + margin;
+        }
+        frameContainerNode.resize(840, y + componentHeight + gap + margin);
+        completedIcons = completedIcons + 1;
+    }
+    else {
+        duplicateIcons = duplicateIcons + 1;
+    }
 }
