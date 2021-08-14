@@ -44,16 +44,19 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 	let fileInput = [];
 	let cancelled = false;
 	let workingState = false;
+	let nodesCollected = false;
 
 	$: disabled = fileInput.length === 0;
-	$: message = { icon: '', text: ''};
 	$: error = '';
+
 
 	let iconCount = 0;
 	let message = {
 		icon: '',
 		text: ''
 	}
+	// $: message = message;
+	console.log(message)
 	let iconFontInstalled = false;
 
 	onmessage = async (event) => {
@@ -69,6 +72,13 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 			}
 		}
 
+
+
+		if (event.data.pluginMessage.type === 'nodes-collected' ) {
+			nodesCollected = event.data.pluginMessage.nodesCollected;
+			createIcons();
+		}
+
 		if (event.data.pluginMessage.type === 'loop-end' ) {
 			workingState = event.data.pluginMessage.workingState;
 			message = {icon: '', text: `Done`}
@@ -80,21 +90,10 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 		}
 
 		if (event.data.pluginMessage.type === 'results') {
-			message = {icon: '', text: event.data.pluginMessage.message}
+			message = {icon: 'check', text: event.data.pluginMessage.message}
 		}
 
 	}
-
-	// function getIconNames() {
-	// 	// const map1 = icomoonJson.icons[].properties.name
-	// 	const names = [];
-	// 	for (var i = icomoonJson.icons.length - 1; i >= 0; i--) {
-	// 		const icon = icomoonJson.icons[i].properties.name;
-	// 		const name = icon.split(', ');
-	// 		names.push(name[0]);
-	// 	}
-	// 	return names;
-	// }
 
 	function prepareIcons() {
 		parent.postMessage({ pluginMessage: { 
@@ -104,13 +103,24 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 	}
 
 
-	function beginIcons() {
-		workingState = true;
-		parent.postMessage({ pluginMessage: { 
-			'type': 'begin-icons'
-		} }, '*');
+    function collectNodes() {
 
-	}
+    	workingState = true;
+    	nodesCollected = false;
+
+
+    	message = {
+    		icon: 'load',
+    		text: 'Analyzing document nodes...'
+    	}
+    	// setTimeout b/c sometimes plugin code gets called first
+    	setTimeout(function(){
+	    	parent.postMessage({ pluginMessage: { 
+				'type': 'collect-nodes'
+			} }, '*');
+    	},1000);
+
+    }
 
 	function createIcons() {
 		workingState = true;
@@ -153,19 +163,10 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
     	}
     }
 
-    function log() {
-    	console.log(icomoonJson)
-    }
-
-    function test() {
-    	parent.postMessage({ pluginMessage: { 
-			'type': 'test'
-		} }, '*');
-    }
-
     function cancel() {
     	cancelled = true;
     }
+
 
     function reset() {
     	icomoonJson = {};
@@ -215,7 +216,7 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 
 	<!-- valid selection.json selected -->
 	{#if "icons" in icomoonJson && fileInput.length}
-		<div class="p-small">
+		<div class="p-small main-content">
 			<div class="load-info">
 				<div class="load-info__name">
 					{icomoonJson.metadata.name}
@@ -232,11 +233,9 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 			<!-- selection.json -->
 			{#if iconFontInstalled && !workingState}
 				<div class="center">
-					<Button on:click={createIcons}>Build Components</Button>
+					<Button on:click={collectNodes}>Build Components</Button>
 				</div>
-			{:else if iconFontInstalled && iconFontInstalled}
-				working 
-			{:else if !iconFontInstalled}
+			{:else if !iconFontInstalled && nodesCollected}
 				<div class="warning">
 					<Icon class="icon" iconName={IconWarning} color="red" /> Font Not Installed
 				</div>			
@@ -258,6 +257,11 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 			{#if (message.icon == 'warning')}
 				<div class="message__icon">
 					<Icon class="icon" iconName={IconWarning} color="blue"/>
+				</div>
+			{/if}
+			{#if (message.icon == 'check')}
+				<div class="message__icon">
+					<Icon class="icon" iconName={IconCheck} color="blue"/>
 				</div>
 			{/if}
 			<div class="message__content">
@@ -341,6 +345,9 @@ https://github.com/thomas-lowry/figma-plugin-ds-svelte
 .instructions {
 	color:  var(--black8);
 	font-size:  var(--font-size-large);
+}
+.main-content {
+	padding-bottom:  0;
 }
 
 </style>

@@ -1,4 +1,4 @@
-figma.showUI(__html__, {width: 288, height: 220 });
+figma.showUI(__html__, {width: 340, height: 220 });
 
 const nodes: SceneNode[] = [];
 
@@ -24,6 +24,8 @@ let documentNodeList:(string)[] = [];
 let workingState = false;
 
 figma.ui.onmessage = async msg => {
+
+	console.log(msg.type)
 
 	if (msg.type === 'init') {
 		try {
@@ -52,17 +54,46 @@ figma.ui.onmessage = async msg => {
 		// iconNames = msg.names;
 	}
 
+	if (msg.type === 'collect-nodes') {
+
+		if (documentNodeList.length === 0) {
+			let components = figma.root.findAll(n => n.type === "COMPONENT");
+			components.forEach(c => {
+				documentNodeList.push(c.name);
+			})
+			figma.ui.postMessage({
+				nodesCollected: true,
+				type: 'nodes-collected'
+			});
+		}
+
+	}
+
 	if (msg.type === 'create-icon') {
 
 		let count = msg.count === 0 ? 0 : msg.count - 1;
 
 		if (count === 0) {
-			figma.ui.postMessage({workingState: workingState, count: count, completed:completedIcons, skipped:duplicateIcons, type: 'loop-end'});
+			figma.ui.postMessage({
+				workingState: workingState,
+				count: count, 
+				completed:completedIcons,
+				skipped:duplicateIcons,
+				nodesCollected: true,
+				type: 'loop-end'
+			});
 			postResults();
 			reset();
 		} else {
 			buildIcon(msg.icon, msg.font, msg.prefix)
-			figma.ui.postMessage({workingState: workingState, count: count, completed:completedIcons, skipped:duplicateIcons, type: 'create-end'});
+			figma.ui.postMessage({
+				workingState: workingState,
+				count: count,
+				completed:completedIcons,
+				skipped:duplicateIcons,
+				nodesCollected: true,
+				type: 'create-end'
+			});
 		}
 	}
 };
@@ -71,9 +102,10 @@ function postResults() {
 	let message = "";
 	if (duplicateIcons === 0 && nodes.length === 0 ) { 
 		message = `No icons found.`;
+		figma.getNodeById(frameContainerNodeId).remove();
 	} else if (duplicateIcons > 0 && nodes.length === 0 ) {
 		message = `No new icons found. ${duplicateIcons} icons already exist.`;
-		
+		figma.getNodeById(frameContainerNodeId).remove();
 	} else if (duplicateIcons > 0 && nodes.length === 1 ) {
 		message = `Added ${nodes.length} new icon! ${duplicateIcons} icons already exist.`;
 	} else if (duplicateIcons > 0 && nodes.length > 1 ){
@@ -110,28 +142,20 @@ function buildIcon(icon, font, prefix){
 	// create a frame to insert new components.
 	// should run only the first time
 	if (figma.getNodeById(frameContainerNodeId) == null) {
-		const frameContainerNodeNode: FrameNode = figma.createFrame();
-		frameContainerNodeId = frameContainerNodeNode.id;
-		figma.currentPage.appendChild(frameContainerNodeNode);
-		frameContainerNodeNode.x = figma.viewport.center.x - 420;
-		frameContainerNodeNode.y = figma.viewport.center.y;
+		const frame: FrameNode = figma.createFrame();
+		frame.visible = false;
+		figma.currentPage.appendChild(frame);
+		frame.x = figma.viewport.center.x - 420;
+		frame.y = figma.viewport.center.y;
+		frameContainerNodeId = frame.id;
 		frameContainerNode = figma.getNodeById(frameContainerNodeId);
 	} else {
 		frameContainerNode = figma.getNodeById(frameContainerNodeId)
 	}
 
-	// get a documentNodeList of all component nodes
-	// to compare with selection for duplicates.
-	// should run only the first time.
-	if (documentNodeList.length === 0) {
-		let components = figma.root.findAll(n => n.type === "COMPONENT");
-		components.forEach(c => {
-			documentNodeList.push(c.name);
-		})
-	}
-
-	// 
 	if (!documentNodeList.includes(iconName)) {
+
+		frameContainerNode.visible = true;
 
 		const frame: FrameNode = figma.createFrame();
 		const iconComponent: ComponentNode = figma.createComponent();

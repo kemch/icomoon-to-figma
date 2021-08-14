@@ -32,17 +32,13 @@ export let text = "Choose File";
 .file-custom {
 	position: absolute;
     top: 0;
-    /* right: 0; */
-    left: 16px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 5;
-    /* height: 2.5rem; */
-    /* padding: .5rem 1rem; */
-    /* line-height: 1.5; */
-    /* color: #555; */
-    /* background-color: #fff; */
-    /* border: .075rem solid #ddd; */
-    /* border-radius: .25rem; */
+    min-width: 200px;
 
+    text-align: center;
+    justify-content: center;
 
     display: flex;
     align-items: center;
