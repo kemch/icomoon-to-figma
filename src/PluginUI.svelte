@@ -212,7 +212,7 @@
                 <div class="center">
                     <Button on:click={collectNodes}>Build Components</Button>
                 </div>
-            {:else if !iconFontInstalled && nodesCollected}
+            {:else if !iconFontInstalled}
                 <div class="warning">
                     <Icon class="icon" iconName={IconWarning} color="red" /> Font Not Installed
                 </div>          

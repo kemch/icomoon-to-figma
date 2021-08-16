@@ -36,13 +36,11 @@ const componentHeight = 65;
 const margin = 50;
 let x = 0 + margin;
 let y = 0 + margin;
-// let iconNames:[] = [];
 let duplicateIcons = 0;
 let completedIcons = 0;
 let documentNodeList = [];
 let workingState = false;
 figma.ui.onmessage = (msg) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(msg.type);
     if (msg.type === 'init') {
         try {
             yield figma.loadFontAsync({ family: "Open Sans", style: "Regular" });
@@ -67,7 +65,6 @@ figma.ui.onmessage = (msg) => __awaiter(void 0, void 0, void 0, function* () {
             });
             figma.notify(e);
         }
-        // iconNames = msg.names;
     }
     if (msg.type === 'collect-nodes') {
         if (documentNodeList.length === 0) {
