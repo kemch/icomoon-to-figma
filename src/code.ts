@@ -166,7 +166,7 @@ function buildIcon(icon, font, prefix){
         iconComponent.name = iconName;
         iconComponent.resize(20, 20);
         iconComponent.appendChild(glyph)
-        iconComponent.description = `(Master Component):\nCSS Class: ${iconName}\nCSS Content: TODO}`;
+        iconComponent.description = `(Master Component):\nCSS Class: ${iconName}}`;
 
         frame.appendChild(label);
         frame.appendChild(iconComponent);
