@@ -204,7 +204,7 @@
                 </div>
                 <div class="load-info__field">
                     <div class="info-label">Number of Icons</div>   
-                    <div class="info-value">{icomoonJson.icons.length - 1}</div>
+                    <div class="info-value">{icomoonJson.icons.length}</div>
                 </div>
             </div>
             <!-- selection.json -->

@@ -66,7 +66,7 @@ figma.ui.onmessage = async msg => {
 
     if (msg.type === 'create-icon') {
 
-        let count = msg.count === 0 ? 0 : msg.count - 1;
+        let count = msg.count;
 
         if (count === 0) {
             figma.ui.postMessage({
@@ -83,7 +83,7 @@ figma.ui.onmessage = async msg => {
             buildIcon(msg.icon, msg.font, msg.prefix)
             figma.ui.postMessage({
                 workingState: workingState,
-                count: count,
+                count: count - 1,
                 completed:completedIcons,
                 skipped:duplicateIcons,
                 nodesCollected: true,
